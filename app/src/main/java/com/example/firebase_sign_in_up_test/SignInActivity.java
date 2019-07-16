@@ -29,6 +29,7 @@ public class SignInActivity extends AppCompatActivity {
 //    private static final int REQUEST_PROFILE=0;
     private FirebaseAuth mAuth;
     private FirebaseUser firebaseUser;
+    private boolean loginSucces=false;
 
     @BindView(R.id.input_email)
     EditText _emailText;
@@ -106,16 +107,19 @@ public class SignInActivity extends AppCompatActivity {
 
         // Implement firebase authentication login here.
         auth_sign_in(email,password);
+        if(loginSucces){
+            progressDialog.dismiss();
+        }
 
-        new android.os.Handler().postDelayed(
-                new Runnable() {
-                    public void run() {
-                        // On complete call either onLoginSuccess or onLoginFailed
-                        onLoginSuccess();
-                        // onLoginFailed();
-                        progressDialog.dismiss();
-                    }
-                }, 3000);
+//        new android.os.Handler().postDelayed(
+//                new Runnable() {
+//                    public void run() {
+//                        // On complete call either onLoginSuccess or onLoginFailed
+//                        onLoginSuccess();
+//                        // onLoginFailed();
+//                        progressDialog.dismiss();
+//                    }
+//                }, 3000);
     }
 
 
@@ -130,8 +134,10 @@ public class SignInActivity extends AppCompatActivity {
                      if(checkIfEmailVerified()){
                          onLoginSuccess();
                          move_profile_activity();
+                         loginSucces=true;
                      }
                      else {
+
                          Toast.makeText(SignInActivity.this, "Email not varified", Toast.LENGTH_SHORT).show();
                      }
                  }
@@ -162,18 +168,18 @@ public class SignInActivity extends AppCompatActivity {
             return false;
         }
     }
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == REQUEST_CODE) {
-            if (resultCode == RESULT_OK) {
-
-                // TODO: Implement successful signup logic here
-                // By default we just finish the Activity and log them in automatically
-                this.finish();
-            }
-        }
-
-    }
+//    @Override
+//    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+//        if (requestCode == REQUEST_CODE) {
+//            if (resultCode == RESULT_OK) {
+//
+//                // TODO: Implement successful signup logic here
+//                // By default we just finish the Activity and log them in automatically
+//                this.finish();
+//            }
+//        }
+//
+//    }
 
     @Override
     public void onBackPressed() {
