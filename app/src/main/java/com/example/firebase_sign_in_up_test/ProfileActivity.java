@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -23,16 +24,18 @@ import com.bumptech.glide.request.RequestOptions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -41,11 +44,11 @@ public class ProfileActivity extends AppCompatActivity {
     private FirebaseAuth mAuth;
     private DatabaseReference mDatabaseReference;
     private FirebaseDatabase database;
-    private FirebaseUser firebaseUser;
     private StorageReference mStorage;
     private User user;
     private static final int CAMERA_REQUEST_CODE=1;
-
+    private String userId;
+    private boolean isCamera=true;
 
     @BindView(R.id.user_name_txt)
     TextView user_name_txt;
@@ -75,39 +78,151 @@ public class ProfileActivity extends AppCompatActivity {
         mAuth=FirebaseAuth.getInstance();
         mStorage= FirebaseStorage.getInstance().getReference().child("Photos");
         user=new User();
+        if(mAuth!=null){
+            userId=mAuth.getCurrentUser().getUid();
+        }
         ButterKnife.bind(this);
-        circleImage();
+        retriveImageFromFireStore();
         clickListnerForCamera();
         readDataFromDatabase();
     }
 
+    /**
+     * retrive image from firebase storage
+     */
+    private void retriveImageFromFireStore(){
+        StorageReference filePath=mStorage.child(userId);
+        filePath.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+            @Override
+            public void onSuccess(Uri uri) {
+                Log.d("Image uri:", String.valueOf(uri));
+                Glide.with(ProfileActivity.this)
+                        .load(uri)
+                        .apply(RequestOptions.circleCropTransform())
+                        .into(profile_image_iv);
+
+            }
+        }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception exception) {
+                Toast.makeText(ProfileActivity.this, "Failed retrive Image.", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+    }
+
+
     private void captureImageFromCamera(){
         Intent intent=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         startActivityForResult(intent,CAMERA_REQUEST_CODE);
+        Log.d("Camera:","yes");
+    }
+    private void getImageFromGallery(){
+        isCamera=false;
+        Intent intent=new Intent();
+        intent.setType("image/*");
+        intent.setAction(Intent.ACTION_GET_CONTENT);
+        startActivityForResult(intent,CAMERA_REQUEST_CODE);
+    }
+
+    /**
+     * upload photo from gallery in firbase storage
+     * @param b
+     */
+    private void uploadPhotoFromGallery(byte[] b){
+        final ProgressDialog progressDialog = new ProgressDialog(ProfileActivity.this,
+                R.style.AppTheme_Dark_Dialog);
+        progressDialog.setIndeterminate(true);
+        progressDialog.setMessage("Uploading Photo...");
+        progressDialog.show();
+        StorageReference filePath=mStorage.child(userId); //.child(imageUri.getLastPathSegment())
+        filePath.putBytes(b).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            @Override
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                progressDialog.dismiss();
+                Toast.makeText(ProfileActivity.this, "Uploading Finished", Toast.LENGTH_SHORT).show();
+
+            }
+        }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                progressDialog.dismiss();
+                Toast.makeText(ProfileActivity.this,"Upload Failed",Toast.LENGTH_LONG).show();
+
+
+            }
+        });
+    }
+
+    /**
+     * upload photo from camera in firebase storage
+     * @param b
+     */
+    public void uploadPhotoFromCamera(byte[] b){
+        final ProgressDialog progressDialog = new ProgressDialog(ProfileActivity.this,
+                R.style.AppTheme_Dark_Dialog);
+        progressDialog.setIndeterminate(true);
+        progressDialog.setMessage("Uploading Photo...");
+        progressDialog.show();
+        StorageReference filePath=mStorage.child(userId);
+        filePath.putBytes(b).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            @Override
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                progressDialog.dismiss();
+                Toast.makeText(ProfileActivity.this, "Uploading Finished", Toast.LENGTH_SHORT).show();
+
+            }
+        }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                progressDialog.dismiss();
+                Toast.makeText(ProfileActivity.this,"Upload Failed",Toast.LENGTH_LONG).show();
+
+
+            }
+        });
+
+    }
+
+    private byte[] getBytes(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+        int bufferSize = 1024;
+        byte[] buffer = new byte[bufferSize];
+
+        int len = 0;
+        while ((len = inputStream.read(buffer)) != -1) {
+            byteBuffer.write(buffer, 0, len);
+        }
+        return byteBuffer.toByteArray();
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
 //        super.onActivityResult(requestCode, resultCode, data);
-        if(requestCode==CAMERA_REQUEST_CODE && requestCode==RESULT_OK){
-            if(mAuth!=null){
-                final ProgressDialog progressDialog = new ProgressDialog(ProfileActivity.this,
-                        R.style.AppTheme_Dark_Dialog);
-                progressDialog.setIndeterminate(true);
-                progressDialog.setMessage("Uploading Photo...");
-                progressDialog.show();
-                String userId=mAuth.getCurrentUser().getUid();
-                Uri uri=data.getData();
-                StorageReference filePath=mStorage.child(userId).child(uri.getLastPathSegment());
-                filePath.putFile(uri).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                    @Override
-                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                        progressDialog.dismiss();
-                        Toast.makeText(ProfileActivity.this, "Uploading Finished", Toast.LENGTH_SHORT).show();
-
-                    }
-                });
+        Log.d("RequestCode:", String.valueOf(requestCode)+resultCode+data);
+        if(requestCode==CAMERA_REQUEST_CODE && resultCode != RESULT_CANCELED && data!=null){
+            if(isCamera){
+               Bitmap photo = (Bitmap) data.getExtras().get("data");
+               ByteArrayOutputStream stream = new ByteArrayOutputStream();
+               photo.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+               byte[] b = stream.toByteArray();
+               circleImage(b);
+               uploadPhotoFromCamera(b);
+               isCamera=false;
             }
+            else {
+                Uri imageUri=data.getData();
+                try {
+                    InputStream iStream =   getContentResolver().openInputStream(imageUri);
+                    byte[] b = getBytes(iStream);
+                    circleImage(b);
+                    uploadPhotoFromGallery(b);
+                    isCamera=true;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
 
         }
     }
@@ -149,7 +264,8 @@ public class ProfileActivity extends AppCompatActivity {
                     captureImageFromCamera();
                 }
                 else {
-                    Toast.makeText(ProfileActivity.this, "Click Gallery", Toast.LENGTH_SHORT).show();
+                    getImageFromGallery();
+                    //Toast.makeText(ProfileActivity.this, "Click Gallery", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -162,10 +278,10 @@ public class ProfileActivity extends AppCompatActivity {
     /**
      * create circular image view using glide library
      */
-    private void circleImage(){
-        String image_url="https://thenypost.files.wordpress.com/2019/06/neymar-2.jpg?quality=90&strip=all&w=618&h=410&crop=1";
+    private void circleImage(byte[] imageByte){
         Glide.with(this)
-                .load(image_url)
+                .asBitmap()
+                .load(imageByte)
                 .apply(RequestOptions.circleCropTransform())
                 .into(profile_image_iv);
     }

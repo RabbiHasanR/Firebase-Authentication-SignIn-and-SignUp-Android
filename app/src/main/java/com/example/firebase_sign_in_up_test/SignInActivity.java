@@ -21,6 +21,7 @@ import com.google.firebase.auth.FirebaseUser;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import butterknife.OnClick;
 
 public class SignInActivity extends AppCompatActivity {
 
@@ -237,5 +238,18 @@ public class SignInActivity extends AppCompatActivity {
         if(mAuth.getCurrentUser()!=null){
             mAuth.signOut();
         }
+    }
+
+    @OnClick(R.id.link_forgot_password)
+    void forgotPassord(){
+        move_reset_password_activity();
+    }
+
+    private void move_reset_password_activity(){
+        // Start the Profile activity
+        Intent intent = new Intent(getApplicationContext(), ResetPasswordActivity.class);
+        startActivity(intent);
+        finish();
+        overridePendingTransition(R.anim.push_left_in, R.anim.push_left_out);
     }
 }
