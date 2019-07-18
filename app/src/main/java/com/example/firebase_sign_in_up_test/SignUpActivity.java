@@ -31,9 +31,9 @@ public class SignUpActivity extends AppCompatActivity {
 
     private static final String TAG = "SignupActivity";
     private FirebaseAuth mAuth;
-    private DatabaseReference mDatabaseReference;
-    private FirebaseDatabase database;
-    private User user;
+//    private DatabaseReference mDatabaseReference;
+//    private FirebaseDatabase database;
+//    private User user;
     private FirebaseUser firebaseUser;
 
     @BindView(R.id.input_name)
@@ -55,12 +55,12 @@ public class SignUpActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sign_up);
-        database = FirebaseDatabase.getInstance();
-        //get firebase database instance and reference
-        mDatabaseReference= database.getReference().child("Users");
+//        database = FirebaseDatabase.getInstance();
+//        //get firebase database instance and reference
+//        mDatabaseReference= database.getReference().child("Users");
         //get firebase authentication instance
         mAuth=FirebaseAuth.getInstance();
-        user=new User();
+//        user=new User();
         ButterKnife.bind(this);
 
         _signupButton.setOnClickListener(new View.OnClickListener() {
@@ -91,20 +91,29 @@ public class SignUpActivity extends AppCompatActivity {
      * create new user and store user information in Firebase database
      *
      */
-    private void writeNewUser(String userId,String email,String password){
+    private void sendUserInfoToSignInActivity(String email,String password){
         String name = _nameText.getText().toString().trim();
         String phone = _mobileText.getText().toString().trim();
 //        String password = _passwordText.getText().toString();
         String address="Unknown";
         String gender="Unknown";
-        user.setUsername(name);
-        user.setAddress(address);
-        user.setEmail(email);
-        user.setGender(gender);
-        user.setPassword(password);
-        user.setPhone(phone);
-        mDatabaseReference.child(userId).setValue(user);
-        Toast.makeText(this, "Save data", Toast.LENGTH_SHORT).show();
+        Intent intent=new Intent(this,SignInActivity.class);
+        intent.putExtra("name",name);
+        intent.putExtra("address",address);
+        intent.putExtra("phone",phone);
+        intent.putExtra("email",email);
+        intent.putExtra("password",password);
+        intent.putExtra("gender",gender);
+        startActivity(intent);
+
+//        user.setUsername(name);
+//        user.setAddress(address);
+//        user.setEmail(email);
+//        user.setGender(gender);
+//        user.setPassword(password);
+//        user.setPhone(phone);
+//        mDatabaseReference.child(userId).setValue(user);
+//        Toast.makeText(this, "Save data", Toast.LENGTH_SHORT).show();
 
     }
 
@@ -114,7 +123,6 @@ public class SignUpActivity extends AppCompatActivity {
     private void sendEmailVerification(String email,String password) {
         firebaseUser = mAuth.getCurrentUser();
         if (firebaseUser!=null){
-            String userId=firebaseUser.getUid();
             firebaseUser.sendEmailVerification().addOnCompleteListener(new OnCompleteListener<Void>() {
                 @Override
                 public void onComplete(@NonNull Task<Void> task) {
@@ -122,7 +130,7 @@ public class SignUpActivity extends AppCompatActivity {
                         Toast.makeText(SignUpActivity.this,"Check your Email for verification",Toast.LENGTH_SHORT).show();
 //                        if(checkIfEmailVerified()){
 //                            Toast.makeText(SignUpActivity.this, "Email verified", Toast.LENGTH_SHORT).show();
-                            writeNewUser(userId,email,password);
+                            sendUserInfoToSignInActivity(email,password);
                             set_input_field_empty();
 //                        }
 //                        else {

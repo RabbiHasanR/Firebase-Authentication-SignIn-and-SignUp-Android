@@ -18,6 +18,12 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -26,11 +32,13 @@ import butterknife.OnClick;
 public class SignInActivity extends AppCompatActivity {
 
     private static final String TAG = "LoginActivity";
-    private static final int REQUEST_CODE = 0;
-//    private static final int REQUEST_PROFILE=0;
     private FirebaseAuth mAuth;
     private FirebaseUser firebaseUser;
-    private boolean loginSucces=false;
+    private DatabaseReference mDatabaseReference;
+    private FirebaseDatabase database;
+    private User user;
+    private ProgressDialog progressDialog;
+    private Intent intent;
 
     @BindView(R.id.input_email)
     EditText _emailText;
@@ -46,6 +54,11 @@ public class SignInActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sign_in);
         mAuth=FirebaseAuth.getInstance();
+        database = FirebaseDatabase.getInstance();
+        //get firebase database instance and reference
+        mDatabaseReference= database.getReference().child("Users");
+        user=new User();
+        intent=getIntent();
         ButterKnife.bind(this);
 
         _loginButton.setOnClickListener(new View.OnClickListener() {
@@ -63,6 +76,32 @@ public class SignInActivity extends AppCompatActivity {
                move_signup_activity();
             }
         });
+    }
+
+    private void storeUserInfo(String userId){
+        Log.d("Store user Info:","access");
+        if(intent.getExtras()!=null){
+            Log.d("Intent:","Not Null");
+            String name=intent.getExtras().getString("name");
+            String email=intent.getExtras().getString("email");
+            String password=intent.getExtras().getString("password");
+            String phone=intent.getExtras().getString("phone");
+            String address=intent.getExtras().getString("address");
+            String gender=intent.getExtras().getString("gender");
+            user.setUsername(name);
+            user.setAddress(address);
+            user.setEmail(email);
+            user.setGender(gender);
+            user.setPassword(password);
+            user.setPhone(phone);
+            mDatabaseReference.child(userId).setValue(user);
+            Toast.makeText(this, "Save data", Toast.LENGTH_SHORT).show();
+
+        }
+        else {
+            progressDialog.dismiss();
+            Log.d("Intent:","Null");
+        }
     }
 
     /**
@@ -97,7 +136,7 @@ public class SignInActivity extends AppCompatActivity {
 
         _loginButton.setEnabled(false);
 
-        final ProgressDialog progressDialog = new ProgressDialog(SignInActivity.this,
+        progressDialog = new ProgressDialog(SignInActivity.this,
                 R.style.AppTheme_Dark_Dialog);
         progressDialog.setIndeterminate(true);
         progressDialog.setMessage("Authenticating...");
@@ -108,9 +147,9 @@ public class SignInActivity extends AppCompatActivity {
 
         // Implement firebase authentication login here.
         auth_sign_in(email,password);
-        if(loginSucces){
-            progressDialog.dismiss();
-        }
+//        if(loginSucces){
+//            progressDialog.dismiss();
+//        }
 
 //        new android.os.Handler().postDelayed(
 //                new Runnable() {
@@ -124,6 +163,53 @@ public class SignInActivity extends AppCompatActivity {
     }
 
 
+    private void hasEmailInDatabase(String userId,String email){
+        DatabaseReference ref=mDatabaseReference.child(userId);
+        Log.d("Method:","access");
+        // Attach a listener to read the data for specific user
+        ValueEventListener valueEventListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.exists()){
+                    Log.d("User:","old");
+                    onLoginSuccess();
+                    move_profile_activity();
+                    progressDialog.dismiss();
+//                    user = dataSnapshot.getValue(User.class);
+//                    if(user.getEmail().equals(email)){
+//
+//                    }
+
+                }
+                else {
+                    if(intent.getExtras()!=null){
+                        Log.d("User:","new");
+                        storeUserInfo(userId);
+                        onLoginSuccess();
+                        move_profile_activity();
+                        progressDialog.dismiss();
+                    }
+                    else {
+                        progressDialog.dismiss();
+                        firebaseUser.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Void> task) {
+                                onLoginFailed();
+                            }
+                        });
+                    }
+
+
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                progressDialog.dismiss();
+            }
+        };
+        ref.addListenerForSingleValueEvent(valueEventListener);
+    }
     /**
      *Firebase authentiation sign in
      */
@@ -133,16 +219,29 @@ public class SignInActivity extends AppCompatActivity {
             public void onComplete(@NonNull Task<AuthResult> task) {
                  if(task.isSuccessful()){
                      if(checkIfEmailVerified()){
-                         onLoginSuccess();
-                         move_profile_activity();
-                         loginSucces=true;
+                         String userId=mAuth.getCurrentUser().getUid();
+                         hasEmailInDatabase(userId,email);
                      }
                      else {
+                         if(intent.getExtras()!=null){
+                             progressDialog.dismiss();
+                             Toast.makeText(SignInActivity.this, "Email not varified", Toast.LENGTH_SHORT).show();
+                             _loginButton.setEnabled(true);
+                         }
+                         else {
+                             progressDialog.dismiss();
+                             firebaseUser.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                 @Override
+                                 public void onComplete(@NonNull Task<Void> task) {
+                                    onLoginFailed();
+                                 }
+                             });
+                         }
 
-                         Toast.makeText(SignInActivity.this, "Email not varified", Toast.LENGTH_SHORT).show();
                      }
                  }
                  else {
+                     progressDialog.dismiss();
                     onLoginFailed();
                  }
             }
@@ -200,8 +299,7 @@ public class SignInActivity extends AppCompatActivity {
      * show login failed message
      */
     private void onLoginFailed() {
-        Toast.makeText(getBaseContext(), "Login failed", Toast.LENGTH_LONG).show();
-
+        Toast.makeText(getBaseContext(), "Incorrect Email or Password", Toast.LENGTH_LONG).show();
         _loginButton.setEnabled(true);
     }
 
