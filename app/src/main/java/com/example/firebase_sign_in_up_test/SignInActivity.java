@@ -28,6 +28,7 @@ import com.google.firebase.database.ValueEventListener;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import butterknife.internal.ListenerClass;
 
 public class SignInActivity extends AppCompatActivity {
 
@@ -58,7 +59,8 @@ public class SignInActivity extends AppCompatActivity {
         //get firebase database instance and reference
         mDatabaseReference= database.getReference().child("Users");
         user=new User();
-        intent=getIntent();
+        intent=new Intent();
+        intent=SignInActivity.this.getIntent();
         ButterKnife.bind(this);
 
         _loginButton.setOnClickListener(new View.OnClickListener() {
@@ -80,7 +82,8 @@ public class SignInActivity extends AppCompatActivity {
 
     private void storeUserInfo(String userId){
         Log.d("Store user Info:","access");
-        if(intent.getExtras()!=null){
+        if(intent.hasExtra("name")){
+            Log.d("Extras:",intent.getExtras().getString("name")+"Store");
             Log.d("Intent:","Not Null");
             String name=intent.getExtras().getString("name");
             String email=intent.getExtras().getString("email");
@@ -96,7 +99,6 @@ public class SignInActivity extends AppCompatActivity {
             user.setPhone(phone);
             mDatabaseReference.child(userId).setValue(user);
             Toast.makeText(this, "Save data", Toast.LENGTH_SHORT).show();
-
         }
         else {
             progressDialog.dismiss();
@@ -147,23 +149,10 @@ public class SignInActivity extends AppCompatActivity {
 
         // Implement firebase authentication login here.
         auth_sign_in(email,password);
-//        if(loginSucces){
-//            progressDialog.dismiss();
-//        }
-
-//        new android.os.Handler().postDelayed(
-//                new Runnable() {
-//                    public void run() {
-//                        // On complete call either onLoginSuccess or onLoginFailed
-//                        onLoginSuccess();
-//                        // onLoginFailed();
-//                        progressDialog.dismiss();
-//                    }
-//                }, 3000);
     }
 
 
-    private void hasEmailInDatabase(String userId,String email){
+    private void hasEmailInDatabase(String userId){
         DatabaseReference ref=mDatabaseReference.child(userId);
         Log.d("Method:","access");
         // Attach a listener to read the data for specific user
@@ -182,8 +171,7 @@ public class SignInActivity extends AppCompatActivity {
 
                 }
                 else {
-                    if(intent.getExtras()!=null){
-                        Log.d("User:","new");
+                    if(intent.hasExtra("name")){
                         storeUserInfo(userId);
                         onLoginSuccess();
                         move_profile_activity();
@@ -220,20 +208,22 @@ public class SignInActivity extends AppCompatActivity {
                  if(task.isSuccessful()){
                      if(checkIfEmailVerified()){
                          String userId=mAuth.getCurrentUser().getUid();
-                         hasEmailInDatabase(userId,email);
+                         hasEmailInDatabase(userId);
                      }
                      else {
-                         if(intent.getExtras()!=null){
+                         if(intent.hasExtra("name")){
+                             Toast.makeText(SignInActivity.this, intent.getExtras().getString("name")+"auth", Toast.LENGTH_SHORT).show();
                              progressDialog.dismiss();
                              Toast.makeText(SignInActivity.this, "Email not varified", Toast.LENGTH_SHORT).show();
                              _loginButton.setEnabled(true);
+
                          }
                          else {
                              progressDialog.dismiss();
                              firebaseUser.delete().addOnCompleteListener(new OnCompleteListener<Void>() {
                                  @Override
                                  public void onComplete(@NonNull Task<Void> task) {
-                                    onLoginFailed();
+                                     onLoginFailed();
                                  }
                              });
                          }
@@ -350,4 +340,5 @@ public class SignInActivity extends AppCompatActivity {
         finish();
         overridePendingTransition(R.anim.push_left_in, R.anim.push_left_out);
     }
+
 }

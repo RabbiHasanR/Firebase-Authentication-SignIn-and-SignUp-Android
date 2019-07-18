@@ -18,11 +18,6 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.firestore.FirebaseFirestore;
-
-import java.util.Objects;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -31,10 +26,8 @@ public class SignUpActivity extends AppCompatActivity {
 
     private static final String TAG = "SignupActivity";
     private FirebaseAuth mAuth;
-//    private DatabaseReference mDatabaseReference;
-//    private FirebaseDatabase database;
-//    private User user;
     private FirebaseUser firebaseUser;
+    private ProgressDialog progressDialog;
 
     @BindView(R.id.input_name)
     EditText _nameText;
@@ -55,12 +48,8 @@ public class SignUpActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sign_up);
-//        database = FirebaseDatabase.getInstance();
-//        //get firebase database instance and reference
-//        mDatabaseReference= database.getReference().child("Users");
         //get firebase authentication instance
         mAuth=FirebaseAuth.getInstance();
-//        user=new User();
         ButterKnife.bind(this);
 
         _signupButton.setOnClickListener(new View.OnClickListener() {
@@ -105,16 +94,6 @@ public class SignUpActivity extends AppCompatActivity {
         intent.putExtra("password",password);
         intent.putExtra("gender",gender);
         startActivity(intent);
-
-//        user.setUsername(name);
-//        user.setAddress(address);
-//        user.setEmail(email);
-//        user.setGender(gender);
-//        user.setPassword(password);
-//        user.setPhone(phone);
-//        mDatabaseReference.child(userId).setValue(user);
-//        Toast.makeText(this, "Save data", Toast.LENGTH_SHORT).show();
-
     }
 
     /**
@@ -127,26 +106,20 @@ public class SignUpActivity extends AppCompatActivity {
                 @Override
                 public void onComplete(@NonNull Task<Void> task) {
                     if (task.isSuccessful()){
+                        progressDialog.dismiss();
                         Toast.makeText(SignUpActivity.this,"Check your Email for verification",Toast.LENGTH_SHORT).show();
-//                        if(checkIfEmailVerified()){
-//                            Toast.makeText(SignUpActivity.this, "Email verified", Toast.LENGTH_SHORT).show();
                             sendUserInfoToSignInActivity(email,password);
                             set_input_field_empty();
-//                        }
-//                        else {
-//                            Toast.makeText(SignUpActivity.this, "Email not verified", Toast.LENGTH_SHORT).show();
-//                            mAuth.signOut();
-//                            move_login_activity();
-//                        }
-
                     }
                     else {
-                        Toast.makeText(SignUpActivity.this,"Email not verify",Toast.LENGTH_SHORT).show();
+                        progressDialog.dismiss();
+                        Toast.makeText(SignUpActivity.this,"Email not send",Toast.LENGTH_SHORT).show();
                     }
                 }
             });
         }
         else {
+            progressDialog.dismiss();
             Toast.makeText(SignUpActivity.this,"Email not send",Toast.LENGTH_SHORT).show();
         }
     }
@@ -164,7 +137,7 @@ public class SignUpActivity extends AppCompatActivity {
 
         _signupButton.setEnabled(false);
 
-        final ProgressDialog progressDialog = new ProgressDialog(SignUpActivity.this,
+        progressDialog = new ProgressDialog(SignUpActivity.this,
                 R.style.AppTheme_Dark_Dialog);
         progressDialog.setIndeterminate(true);
         progressDialog.setMessage("Creating Account...");
@@ -174,17 +147,6 @@ public class SignUpActivity extends AppCompatActivity {
 
         // Implement firebase authentication signup .
         authentication();
-
-        new android.os.Handler().postDelayed(
-                new Runnable() {
-                    public void run() {
-                        // On complete call either onSignupSuccess or onSignupFailed
-                        // depending on success
-                        onSignupSuccess();
-                        // onSignupFailed();
-                        progressDialog.dismiss();
-                    }
-                }, 3000);
     }
 
 
@@ -201,30 +163,11 @@ public class SignUpActivity extends AppCompatActivity {
                 if (task.isSuccessful()){
                     sendEmailVerification(email,reEnterPassword);
                 }else{
+                    progressDialog.dismiss();
                     Toast.makeText(SignUpActivity.this,"error on creating user",Toast.LENGTH_SHORT).show();
                 }
             }
         });
-    }
-
-    /**
-     * check if email veriied or not
-     * @return
-     */
-    private boolean checkIfEmailVerified()
-    {
-        firebaseUser = mAuth.getCurrentUser();
-        if (firebaseUser.isEmailVerified())
-        {
-            // user is verified return true.
-            return true;
-        }
-        else
-        {
-            // email is not verified, so just prompt the message to the user and restart this activity.
-            // NOTE: don't forget to log out the user.
-            return false;
-        }
     }
 
     //if sign up success set signup button enable

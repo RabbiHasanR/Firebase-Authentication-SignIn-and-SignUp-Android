@@ -15,9 +15,7 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
@@ -27,11 +25,6 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.material.tabs.TabLayout;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
@@ -49,6 +42,7 @@ public class ProfileActivity extends AppCompatActivity {
     private static final int CAMERA_REQUEST_CODE=1;
     private String userId;
     private boolean isCamera=true;
+    private boolean isRetriveImage=false;;
     @BindView(R.id.profile_image)
     ImageView profile_image_iv;
     @BindView(R.id.take_photo)
@@ -69,7 +63,16 @@ public class ProfileActivity extends AppCompatActivity {
             userId=mAuth.getCurrentUser().getUid();
         }
         ButterKnife.bind(this);
-        retriveImageFromFireStore();
+        if(isRetriveImage){
+            retriveImageFromFireStore();
+        }
+        else {
+            Glide.with(ProfileActivity.this)
+                    .load(R.drawable.home)
+                    .apply(RequestOptions.circleCropTransform())
+                    .into(profile_image_iv);
+        }
+
         clickListnerForCamera();
         // Create an adapter that knows which fragment should be shown on each page
         ViewPagerAdapter adapter = new ViewPagerAdapter(this,getSupportFragmentManager());
@@ -87,6 +90,7 @@ public class ProfileActivity extends AppCompatActivity {
         filePath.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
             @Override
             public void onSuccess(Uri uri) {
+                isRetriveImage=true;
                 Log.d("Image uri:", String.valueOf(uri));
                 Glide.with(ProfileActivity.this)
                         .load(uri)
@@ -97,6 +101,7 @@ public class ProfileActivity extends AppCompatActivity {
         }).addOnFailureListener(new OnFailureListener() {
             @Override
             public void onFailure(@NonNull Exception exception) {
+                isRetriveImage=false;
                 Toast.makeText(ProfileActivity.this, "Failed retrive Image.", Toast.LENGTH_SHORT).show();
             }
         });
